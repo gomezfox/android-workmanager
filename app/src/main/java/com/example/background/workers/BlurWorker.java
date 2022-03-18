@@ -55,7 +55,7 @@ public class BlurWorker extends Worker {
             Log.e(TAG, "Error applying blur", throwable);
 
             // 9
-            return Result.failure()
+            return Result.failure();
         }
 
     }
