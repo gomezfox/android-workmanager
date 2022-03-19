@@ -1,16 +1,21 @@
 package com.example.background.workers;
 
+import android.content.ContentResolver;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
+import android.text.TextUtils;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.work.Data;
 import androidx.work.Worker;
 import androidx.work.WorkerParameters;
 
+import com.example.background.Constants;
 import com.example.background.R;
+import com.example.background.Constants;
 
 public class BlurWorker extends Worker {
 
@@ -22,39 +27,45 @@ public class BlurWorker extends Worker {
         super(appContext, workerParams);
     }
 
+
+
     @NonNull
     @Override
     public Result doWork() {
 
         // 1
         Context applicationContext = getApplicationContext();
+        String resourceUri = getInputData().getString(Constants.KEY_IMAGE_URI);
 
-        // 7(a)
         try {
-            // 2
-            Bitmap picture = BitmapFactory.decodeResource(
-                    applicationContext.getResources(),
-                    R.drawable.android_cupcake);
+            // Validate the uri
+            if (TextUtils.isEmpty(resourceUri)) {
+                Log.e(TAG, "Invalid input uri");
+                throw new IllegalArgumentException("Invalid input uri");
+            }
+            ContentResolver resolver = applicationContext.getContentResolver();
 
-            // 3
+            // Read the file
+            Bitmap picture = BitmapFactory.decodeStream(
+                    resolver.openInputStream(Uri.parse(resourceUri)));
+
+            // Apply the blur
             Bitmap output = WorkerUtils.blurBitmap(picture, applicationContext);
 
-            // 4
+            // Write the new file
             Uri outputUri = WorkerUtils.writeBitmapToFile(applicationContext, output);
 
-            // 5
+            // Let the app/user know
             WorkerUtils.makeStatusNotification(outputUri.toString(), applicationContext);
 
-            // 6
-            return Result.success();
+            // output a temporary file uri for other workers to utilize
+            Data outputData = new Data.Builder()
+                    .putString(Constants.KEY_IMAGE_URI, outputUri.toString())
+                    .build();
+            return Result.success(outputData);
 
-        // 7(b)
         } catch (Throwable throwable) {
-
-            // 8
             Log.e(TAG, "Error applying blur", throwable);
-
-            // 9
             return Result.failure();
         }
 
